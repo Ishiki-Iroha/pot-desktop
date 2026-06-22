@@ -4,6 +4,7 @@ use crate::APP;
 use log::{info, warn};
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
+use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{ClipboardManager, Manager, Window, WindowBuilder};
 
@@ -129,7 +130,10 @@ fn show_toolbar_near_mouse(text: String) {
     }
 
     let _ = window.set_size(tauri::PhysicalSize::new(width, height));
-    let _ = window.set_position(tauri::PhysicalPosition::new(x.round() as i32, y.round() as i32));
+    let _ = window.set_position(tauri::PhysicalPosition::new(
+        x.round() as i32,
+        y.round() as i32,
+    ));
     let _ = window.show();
     let _ = window.emit("selection_toolbar_text_changed", text);
 }
@@ -137,8 +141,92 @@ fn show_toolbar_near_mouse(text: String) {
 fn hide_toolbar_window() {
     let app_handle = APP.get().unwrap();
     if let Some(window) = app_handle.get_window("selection_toolbar") {
-        let _ = window.hide();
+        match window.hide() {
+            Ok(_) => info!("Selection toolbar hidden"),
+            Err(e) => warn!("Failed to hide selection toolbar: {:?}", e),
+        }
     }
+}
+
+fn mouse_is_over_toolbar_window() -> bool {
+    use mouse_position::mouse_position::{Mouse, Position};
+
+    let app_handle = APP.get().unwrap();
+    let Some(window) = app_handle.get_window("selection_toolbar") else {
+        return false;
+    };
+    if !window.is_visible().unwrap_or(false) {
+        return false;
+    }
+    let mouse_position = match Mouse::get_mouse_position() {
+        Mouse::Position { x, y } => Position { x, y },
+        Mouse::Error => return false,
+    };
+    let position = match window.outer_position() {
+        Ok(position) => position,
+        Err(_) => return false,
+    };
+    let size = match window.outer_size() {
+        Ok(size) => size,
+        Err(_) => return false,
+    };
+
+    mouse_position.x >= position.x
+        && mouse_position.x <= position.x + size.width as i32
+        && mouse_position.y >= position.y
+        && mouse_position.y <= position.y + size.height as i32
+}
+
+#[cfg(target_os = "windows")]
+struct ComInitialization;
+
+#[cfg(target_os = "windows")]
+impl Drop for ComInitialization {
+    fn drop(&mut self) {
+        unsafe {
+            windows::Win32::System::Com::CoUninitialize();
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_selected_text_by_automation() -> windows::core::Result<String> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitialize, CLSCTX_ALL};
+    use windows::Win32::UI::Accessibility::{
+        CUIAutomation, IUIAutomation, IUIAutomationTextPattern, UIA_TextPatternId,
+    };
+
+    unsafe { CoInitialize(None) }.ok()?;
+    let _com = ComInitialization;
+
+    let automation: IUIAutomation = unsafe { CoCreateInstance(&CUIAutomation, None, CLSCTX_ALL) }?;
+    let element = unsafe { automation.GetFocusedElement() }?;
+    let text_pattern: IUIAutomationTextPattern =
+        unsafe { element.GetCurrentPatternAs(UIA_TextPatternId) }?;
+    let text_ranges = unsafe { text_pattern.GetSelection() }?;
+    let length = unsafe { text_ranges.Length() }?;
+    let mut text = String::new();
+
+    for index in 0..length {
+        let range = unsafe { text_ranges.GetElement(index) }?;
+        let range_text = unsafe { range.GetText(-1) }?;
+        text.push_str(&range_text.to_string());
+    }
+
+    Ok(text)
+}
+
+#[cfg(target_os = "windows")]
+fn get_selected_text_without_clipboard() -> String {
+    match get_selected_text_by_automation() {
+        Ok(text) => text.trim().to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_selected_text_without_clipboard() -> String {
+    selection::get_text().trim().to_string()
 }
 
 fn check_selection_after_delay() {
@@ -150,6 +238,10 @@ fn check_selection_after_delay() {
             return;
         }
 
+        if mouse_is_over_toolbar_window() {
+            return;
+        }
+
         {
             let state = TRIGGER_STATE.lock().unwrap();
             if Instant::now() < state.suppress_until {
@@ -157,7 +249,7 @@ fn check_selection_after_delay() {
             }
         }
 
-        let text = selection::get_text().trim().to_string();
+        let text = get_selected_text_without_clipboard();
         if text.is_empty() {
             hide_toolbar_window();
             return;
@@ -166,7 +258,9 @@ fn check_selection_after_delay() {
         {
             let mut state = TRIGGER_STATE.lock().unwrap();
             let now = Instant::now();
-            if state.last_text == text && now.duration_since(state.last_at) < Duration::from_millis(800) {
+            if state.last_text == text
+                && now.duration_since(state.last_at) < Duration::from_millis(800)
+            {
                 return;
             }
             state.last_text = text.clone();
@@ -224,15 +318,22 @@ pub fn hide_selection_toolbar() {
 
 #[tauri::command]
 pub fn selection_toolbar_action(action: String) -> Result<(), String> {
-    suppress_selection_check(Duration::from_millis(800));
+    suppress_selection_check(Duration::from_millis(15_000));
     hide_toolbar_window();
 
     let app_handle = APP.get().unwrap();
     let text_state: tauri::State<SelectionToolbarTextWrapper> = app_handle.state();
     let text = text_state.0.lock().unwrap().trim().to_string();
     if text.is_empty() {
+        warn!("Selection toolbar action ignored: no selected text");
         return Err("No selected text".to_string());
     }
+
+    info!(
+        "Selection toolbar action requested: {}, text chars: {}",
+        action,
+        text.chars().count()
+    );
 
     match action.as_str() {
         "copy" => app_handle
@@ -244,15 +345,23 @@ pub fn selection_toolbar_action(action: String) -> Result<(), String> {
                 Some(v) => v.as_str().unwrap_or("default").to_string(),
                 None => "default".to_string(),
             };
-            if engine == "ai" {
-                ai_action("translate".to_string(), text);
-            } else {
-                text_translate(text);
-            }
+            thread::spawn(move || {
+                thread::sleep(Duration::from_millis(80));
+                info!("Run queued selection toolbar translate action");
+                if engine == "ai" {
+                    ai_action("translate".to_string(), text);
+                } else {
+                    text_translate(text);
+                }
+            });
             Ok(())
         }
         "explain" => {
-            ai_action("explain".to_string(), text);
+            thread::spawn(move || {
+                thread::sleep(Duration::from_millis(80));
+                info!("Run queued selection toolbar explain action");
+                ai_action("explain".to_string(), text);
+            });
             Ok(())
         }
         _ => Err(format!("Unsupported selection toolbar action: {}", action)),

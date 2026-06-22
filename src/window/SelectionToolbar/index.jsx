@@ -1,4 +1,4 @@
-import { Button, Tooltip } from '@nextui-org/react';
+import { Button } from '@nextui-org/react';
 import { invoke } from '@tauri-apps/api';
 import React, { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
@@ -9,23 +9,18 @@ import { useTranslation } from 'react-i18next';
 
 function ToolbarButton({ tooltip, icon, action }) {
     return (
-        <Tooltip
-            content={tooltip}
-            delay={300}
+        <Button
+            size='sm'
+            radius='sm'
+            variant='light'
+            className='h-[30px] min-w-0 px-[8px] text-white data-[hover=true]:bg-white/10'
+            startContent={icon}
+            onPress={() => {
+                invoke('selection_toolbar_action', { action }).catch(() => {});
+            }}
         >
-            <Button
-                size='sm'
-                radius='sm'
-                variant='light'
-                className='h-[30px] min-w-0 px-[8px] text-white data-[hover=true]:bg-white/10'
-                startContent={icon}
-                onPress={() => {
-                    invoke('selection_toolbar_action', { action }).catch(() => {});
-                }}
-            >
-                {tooltip}
-            </Button>
-        </Tooltip>
+            {tooltip}
+        </Button>
     );
 }
 

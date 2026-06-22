@@ -10,6 +10,8 @@ use dirs::cache_dir;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 use tauri::Manager;
 use tauri::Monitor;
 use tauri::Window;
@@ -28,6 +30,29 @@ pub struct AiActionWrapper(pub Mutex<Option<AiActionPayload>>);
 fn clear_ai_action_state(app_handle: &tauri::AppHandle) {
     let ai_state: tauri::State<AiActionWrapper> = app_handle.state();
     ai_state.0.lock().unwrap().take();
+}
+
+fn show_and_focus_window(window: &Window, label: &str) {
+    if let Err(e) = window.show() {
+        warn!("Show window failed: {}: {:?}", label, e);
+    }
+    if let Err(e) = window.unminimize() {
+        warn!("Unminimize window failed: {}: {:?}", label, e);
+    }
+    if let Err(e) = window.set_focus() {
+        warn!("Focus window failed: {}: {:?}", label, e);
+    }
+    match window.is_visible() {
+        Ok(visible) => info!("Window visible after show/focus: {} {}", label, visible),
+        Err(e) => warn!("Read window visibility failed: {}: {:?}", label, e),
+    }
+}
+
+fn show_and_focus_window_delayed(window: Window, label: &'static str) {
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(300));
+        show_and_focus_window(&window, label);
+    });
 }
 
 // Get daemon window instance
@@ -92,7 +117,7 @@ fn build_window(label: &str, title: &str) -> (Window, bool) {
     match app_handle.get_window(label) {
         Some(v) => {
             info!("Window existence: {}", label);
-            v.set_focus().unwrap();
+            show_and_focus_window(&v, label);
             (v, true)
         }
         None => {
@@ -119,10 +144,14 @@ fn build_window(label: &str, title: &str) -> (Window, bool) {
                 builder = builder.transparent(true).decorations(false);
             }
             let window = builder.build().unwrap();
+            info!("Window created: {}", label);
 
             if label != "screenshot" {
                 #[cfg(not(target_os = "linux"))]
-                set_shadow(&window, true).unwrap_or_default();
+                match set_shadow(&window, true) {
+                    Ok(_) => info!("Window shadow enabled: {}", label),
+                    Err(e) => warn!("Enable window shadow failed: {}: {:?}", label, e),
+                }
             }
             let _ = window.current_monitor();
             (window, false)
@@ -153,7 +182,11 @@ fn translate_window() -> Window {
     if exists {
         return window;
     }
-    window.set_skip_taskbar(true).unwrap();
+    show_and_focus_window(&window, "translate");
+    match window.set_skip_taskbar(true) {
+        Ok(_) => info!("Translate window skip taskbar enabled"),
+        Err(e) => warn!("Set translate skip taskbar failed: {:?}", e),
+    }
     // Get Translate Window Size
     let width = match get("translate_window_width") {
         Some(v) => v.as_i64().unwrap(),
@@ -170,15 +203,26 @@ fn translate_window() -> Window {
         }
     };
 
-    let monitor = window.current_monitor().unwrap().unwrap();
+    let monitor = match window.current_monitor() {
+        Ok(Some(monitor)) => monitor,
+        Ok(None) => {
+            warn!("Translate window monitor not found, using daemon monitor");
+            get_current_monitor(mouse_position.x, mouse_position.y)
+        }
+        Err(e) => {
+            warn!("Read translate window monitor failed: {:?}", e);
+            get_current_monitor(mouse_position.x, mouse_position.y)
+        }
+    };
     let dpi = monitor.scale_factor();
 
-    window
-        .set_size(tauri::PhysicalSize::new(
-            (width as f64) * dpi,
-            (height as f64) * dpi,
-        ))
-        .unwrap();
+    match window.set_size(tauri::PhysicalSize::new(
+        (width as f64) * dpi,
+        (height as f64) * dpi,
+    )) {
+        Ok(_) => info!("Translate window size set: {}x{}", width, height),
+        Err(e) => warn!("Set translate window size failed: {:?}", e),
+    }
 
     let position_type = match get("translate_window_position") {
         Some(v) => v.as_str().unwrap().to_string(),
@@ -212,12 +256,16 @@ fn translate_window() -> Window {
                 }
             }
 
-            window
-                .set_position(tauri::PhysicalPosition::new(
-                    mouse_position.x,
-                    mouse_position.y,
-                ))
-                .unwrap();
+            match window.set_position(tauri::PhysicalPosition::new(
+                mouse_position.x,
+                mouse_position.y,
+            )) {
+                Ok(_) => info!(
+                    "Translate window position set: {}, {}",
+                    mouse_position.x, mouse_position.y
+                ),
+                Err(e) => warn!("Set translate window position failed: {:?}", e),
+            }
         }
         _ => {
             let position_x = match get("translate_window_position_x") {
@@ -228,15 +276,20 @@ fn translate_window() -> Window {
                 Some(v) => v.as_i64().unwrap(),
                 None => 0,
             };
-            window
-                .set_position(tauri::PhysicalPosition::new(
-                    (position_x as f64) * dpi,
-                    (position_y as f64) * dpi,
-                ))
-                .unwrap();
+            match window.set_position(tauri::PhysicalPosition::new(
+                (position_x as f64) * dpi,
+                (position_y as f64) * dpi,
+            )) {
+                Ok(_) => info!(
+                    "Translate window position restored: {}, {}",
+                    position_x, position_y
+                ),
+                Err(e) => warn!("Restore translate window position failed: {:?}", e),
+            }
         }
     }
 
+    show_and_focus_window(&window, "translate");
     window
 }
 
@@ -285,7 +338,9 @@ pub fn text_translate(text: String) {
     let state: tauri::State<StringWrapper> = app_handle.state();
     state.0.lock().unwrap().replace_range(.., &text);
     let window = translate_window();
+    show_and_focus_window(&window, "translate");
     window.emit("new_text", text).unwrap();
+    show_and_focus_window_delayed(window, "translate");
 }
 
 pub fn ai_action(action: String, text: String) {
@@ -299,7 +354,9 @@ pub fn ai_action(action: String, text: String) {
     let state: tauri::State<StringWrapper> = app_handle.state();
     state.0.lock().unwrap().replace_range(.., &text);
     let window = translate_window();
+    show_and_focus_window(&window, "translate");
     window.emit("new_ai_action", payload).unwrap();
+    show_and_focus_window_delayed(window, "translate");
 }
 
 #[tauri::command]

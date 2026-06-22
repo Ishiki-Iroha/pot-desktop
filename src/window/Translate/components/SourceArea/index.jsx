@@ -28,6 +28,12 @@ export const detectLanguageAtom = atom('');
 
 let unlisten = null;
 let timer = null;
+const blurCloseSuppressedUntilKey = '__potTranslateBlurCloseSuppressedUntil';
+
+const suppressTranslateBlurClose = (reason) => {
+    window[blurCloseSuppressedUntilKey] = Date.now() + 10000;
+    info(`Suppress translate blur close: ${reason}`);
+};
 
 export default function SourceArea(props) {
     const { pluginList, serviceInstanceConfigMap } = props;
@@ -50,6 +56,7 @@ export default function SourceArea(props) {
     const speak = useVoice();
 
     const handleNewText = async (text) => {
+        suppressTranslateBlurClose('source_new_text');
         text = text.trim();
         if (hideWindow) {
             appWindow.hide();

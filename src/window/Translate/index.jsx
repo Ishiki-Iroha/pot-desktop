@@ -22,6 +22,22 @@ import { info } from 'tauri-plugin-log-api';
 let blurTimeout = null;
 let resizeTimeout = null;
 let moveTimeout = null;
+const blurCloseSuppressedUntilKey = '__potTranslateBlurCloseSuppressedUntil';
+window[blurCloseSuppressedUntilKey] = Math.max(
+    Number(window[blurCloseSuppressedUntilKey] || 0),
+    Date.now() + 3000
+);
+
+const suppressBlurClose = (reason, duration = 3000) => {
+    window[blurCloseSuppressedUntilKey] = Date.now() + duration;
+    info(`Suppress translate blur close: ${reason}`);
+};
+
+const showAndFocusTranslateWindow = (reason) => {
+    suppressBlurClose(reason, 10000);
+    void appWindow.show();
+    void appWindow.setFocus();
+};
 
 const listenBlur = () => {
     return listen('tauri://blur', () => {
@@ -29,11 +45,15 @@ const listenBlur = () => {
             if (blurTimeout) {
                 clearTimeout(blurTimeout);
             }
-            info('Blur');
+            if (Date.now() < Number(window[blurCloseSuppressedUntilKey] || 0)) {
+                info('Skip translate blur close');
+                return;
+            }
+            info('Translate Blur');
             // 100ms后关闭窗口，因为在 windows 下拖动窗口时会先切换成 blur 再立即切换成 focus
             // 如果直接关闭将导致窗口无法拖动
             blurTimeout = setTimeout(async () => {
-                info('Confirm Blur');
+                info('Confirm Translate Blur Close');
                 await appWindow.close();
             }, 100);
         }
@@ -202,15 +222,18 @@ export default function Translate() {
     useEffect(() => {
         invoke('get_pending_ai_action').then((value) => {
             if (value && value.text) {
+                showAndFocusTranslateWindow('pending_ai_action');
                 setAiAction(value);
             }
         });
 
         const unlistenAiAction = listen('new_ai_action', (event) => {
+            showAndFocusTranslateWindow('new_ai_action');
             setAiAction(event.payload);
             invoke('get_pending_ai_action').catch(() => {});
         });
         const unlistenNewText = listen('new_text', () => {
+            showAndFocusTranslateWindow('new_text');
             setAiAction(null);
         });
         return () => {
