@@ -42,6 +42,13 @@
             "uk": "乌克兰语",
             "he": "希伯来语"
         },
+        "selection_toolbar": {
+            "translate": "翻译",
+            "ai_translate": "AI 翻译",
+            "explain": "解释",
+            "copy": "复制",
+            "selected_text": "选中文本"
+        },
         "config": {
             "general": {
                 "label": "常规设置",
@@ -134,6 +141,28 @@
                 "bing": "必应",
                 "yandex": "Yandex",
                 "local": "本地"
+            },
+            "selection_toolbar": {
+                "label": "划词 AI",
+                "enable": "启用划词工具栏",
+                "translate_engine": "翻译按钮",
+                "default": "现有翻译服务",
+                "ai": "AI 翻译",
+                "translate_profile": "翻译模型配置",
+                "explain_profile": "解释模型配置",
+                "profiles": "OpenAI 兼容模型配置",
+                "profile_name": "配置名称",
+                "base_url": "Base URL",
+                "api_key": "API Key",
+                "model": "模型",
+                "stream": "流式输出",
+                "request_arguments": "Request Arguments",
+                "add_profile": "添加模型配置",
+                "delete_profile": "删除模型配置",
+                "translate_prompt": "翻译 Prompt",
+                "explain_prompt": "解释 Prompt",
+                "prompt_hint": "$text $from $to $detect 会分别替换为选中文本、源语言、目标语言和检测语言。",
+                "add_prompt": "添加 Prompt"
             },
             "recognize": {
                 "label": "文字识别",

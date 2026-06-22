@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { PiTextboxFill } from 'react-icons/pi';
 import { MdKeyboardAlt } from 'react-icons/md';
 import { MdExtension } from 'react-icons/md';
+import { MdAutoAwesome } from 'react-icons/md';
 import { AiFillCloud } from 'react-icons/ai';
 import { FaHistory } from 'react-icons/fa';
 import { Button } from '@nextui-org/react';
@@ -33,6 +34,18 @@ export default function SideBar() {
                 startContent={<AiFillAppstore className='text-[24px]' />}
             >
                 <div className='w-full'>{t('config.general.label')}</div>
+            </Button>
+            <Button
+                fullWidth
+                size='lg'
+                variant={setStyle('/selection-toolbar')}
+                className='mb-[5px]'
+                onPress={() => {
+                    navigate('/selection-toolbar');
+                }}
+                startContent={<MdAutoAwesome className='text-[24px]' />}
+            >
+                <div className='w-full'>{t('config.selection_toolbar.label')}</div>
             </Button>
             <Button
                 fullWidth

@@ -9,6 +9,7 @@ mod error;
 mod hotkey;
 mod lang_detect;
 mod screenshot;
+mod selection_toolbar;
 mod server;
 mod system_ocr;
 mod tray;
@@ -24,6 +25,7 @@ use lang_detect::*;
 use log::info;
 use once_cell::sync::OnceCell;
 use screenshot::screenshot;
+use selection_toolbar::*;
 use server::*;
 use std::sync::Mutex;
 use system_ocr::*;
@@ -32,7 +34,9 @@ use tauri::Manager;
 use tauri_plugin_log::LogTarget;
 use tray::*;
 use updater::check_update;
+use window::AiActionWrapper;
 use window::config_window;
+use window::get_pending_ai_action;
 use window::updater_window;
 
 // Global AppHandle
@@ -85,10 +89,14 @@ fn main() {
                 config_window();
             }
             app.manage(StringWrapper(Mutex::new("".to_string())));
+            app.manage(AiActionWrapper(Mutex::new(None)));
+            app.manage(SelectionToolbarTextWrapper(Mutex::new("".to_string())));
             // Update Tray Menu
             update_tray(app.app_handle(), "".to_string(), "".to_string());
             // Start http server
             start_server();
+            // Start selection toolbar monitor
+            start_selection_toolbar_monitor();
             // Register Global Shortcut
             match register_shortcut("all") {
                 Ok(()) => {}
@@ -139,6 +147,10 @@ fn main() {
             run_binary,
             open_devtools,
             register_shortcut_by_frontend,
+            selection_toolbar_action,
+            hide_selection_toolbar,
+            get_selection_toolbar_text,
+            get_pending_ai_action,
             update_tray,
             updater_window,
             screenshot,

@@ -1,17 +1,34 @@
+#[cfg(target_os = "macos")]
 use std::fs;
 
 use crate::config::get;
 use crate::config::set;
 use crate::StringWrapper;
 use crate::APP;
+#[cfg(target_os = "macos")]
 use dirs::cache_dir;
 use log::{info, warn};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use tauri::Manager;
 use tauri::Monitor;
 use tauri::Window;
 use tauri::WindowBuilder;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use window_shadows::set_shadow;
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct AiActionPayload {
+    pub action: String,
+    pub text: String,
+}
+
+pub struct AiActionWrapper(pub Mutex<Option<AiActionPayload>>);
+
+fn clear_ai_action_state(app_handle: &tauri::AppHandle) {
+    let ai_state: tauri::State<AiActionWrapper> = app_handle.state();
+    ai_state.0.lock().unwrap().take();
+}
 
 // Get daemon window instance
 fn get_daemon_window() -> Window {
@@ -225,10 +242,11 @@ fn translate_window() -> Window {
 
 pub fn selection_translate() {
     use selection::get_text;
+    let app_handle = APP.get().unwrap();
+    clear_ai_action_state(app_handle);
     // Get Selected Text
     let text = get_text();
     if !text.trim().is_empty() {
-        let app_handle = APP.get().unwrap();
         // Write into State
         let state: tauri::State<StringWrapper> = app_handle.state();
         state.0.lock().unwrap().replace_range(.., &text);
@@ -240,6 +258,7 @@ pub fn selection_translate() {
 
 pub fn input_translate() {
     let app_handle = APP.get().unwrap();
+    clear_ai_action_state(app_handle);
     // Clear State
     let state: tauri::State<StringWrapper> = app_handle.state();
     state
@@ -261,6 +280,7 @@ pub fn input_translate() {
 
 pub fn text_translate(text: String) {
     let app_handle = APP.get().unwrap();
+    clear_ai_action_state(app_handle);
     // Clear State
     let state: tauri::State<StringWrapper> = app_handle.state();
     state.0.lock().unwrap().replace_range(.., &text);
@@ -268,8 +288,28 @@ pub fn text_translate(text: String) {
     window.emit("new_text", text).unwrap();
 }
 
+pub fn ai_action(action: String, text: String) {
+    let app_handle = APP.get().unwrap();
+    let payload = AiActionPayload {
+        action,
+        text: text.clone(),
+    };
+    let ai_state: tauri::State<AiActionWrapper> = app_handle.state();
+    ai_state.0.lock().unwrap().replace(payload.clone());
+    let state: tauri::State<StringWrapper> = app_handle.state();
+    state.0.lock().unwrap().replace_range(.., &text);
+    let window = translate_window();
+    window.emit("new_ai_action", payload).unwrap();
+}
+
+#[tauri::command]
+pub fn get_pending_ai_action(state: tauri::State<AiActionWrapper>) -> Option<AiActionPayload> {
+    state.0.lock().unwrap().take()
+}
+
 pub fn image_translate() {
     let app_handle = APP.get().unwrap();
+    clear_ai_action_state(app_handle);
     let state: tauri::State<StringWrapper> = app_handle.state();
     state
         .0

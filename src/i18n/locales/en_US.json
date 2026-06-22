@@ -42,6 +42,13 @@
             "uk": "Ukrainian",
             "he": "Hebrew"
         },
+        "selection_toolbar": {
+            "translate": "Translate",
+            "ai_translate": "AI Translate",
+            "explain": "Explain",
+            "copy": "Copy",
+            "selected_text": "Selected Text"
+        },
         "config": {
             "general": {
                 "label": "General",
@@ -134,6 +141,28 @@
                 "bing": "Bing",
                 "yandex": "Yandex",
                 "local": "Local"
+            },
+            "selection_toolbar": {
+                "label": "Selection AI",
+                "enable": "Enable Selection Toolbar",
+                "translate_engine": "Translate Button",
+                "default": "Existing Translation Services",
+                "ai": "AI Translation",
+                "translate_profile": "Translate Profile",
+                "explain_profile": "Explain Profile",
+                "profiles": "OpenAI-Compatible Profiles",
+                "profile_name": "Profile Name",
+                "base_url": "Base URL",
+                "api_key": "API Key",
+                "model": "Model",
+                "stream": "Stream Mode",
+                "request_arguments": "Request Arguments",
+                "add_profile": "Add Profile",
+                "delete_profile": "Delete Profile",
+                "translate_prompt": "Translate Prompt",
+                "explain_prompt": "Explain Prompt",
+                "prompt_hint": "$text $from $to $detect are replaced with selected text, source language, target language and detected language.",
+                "add_prompt": "Add Prompt"
             },
             "recognize": {
                 "label": "Recognize",
