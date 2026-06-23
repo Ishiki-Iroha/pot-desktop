@@ -10,7 +10,7 @@ use tauri::{ClipboardManager, Manager, Window, WindowBuilder};
 
 pub struct SelectionToolbarTextWrapper(pub Mutex<String>);
 
-const TOOLBAR_WIDTH: f64 = 292.0;
+const TOOLBAR_WIDTH: f64 = 220.0;
 const TOOLBAR_HEIGHT: f64 = 40.0;
 
 struct TriggerState {
