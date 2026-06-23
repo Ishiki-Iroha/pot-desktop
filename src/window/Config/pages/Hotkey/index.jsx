@@ -47,6 +47,7 @@ const keyMap = {
 
 export default function Hotkey() {
     const [selectionTranslate, setSelectionTranslate] = useConfig('hotkey_selection_translate', '');
+    const [selectionToolbar, setSelectionToolbar] = useConfig('hotkey_selection_toolbar', 'Ctrl+Alt+Space');
     const [inputTranslate, setInputTranslate] = useConfig('hotkey_input_translate', '');
     const [ocrRecognize, setOcrRecognize] = useConfig('hotkey_ocr_recognize', '');
     const [ocrTranslate, setOcrTranslate] = useConfig('hotkey_ocr_translate', '');
@@ -140,6 +141,37 @@ export default function Hotkey() {
                                     className={`${selectionTranslate === '' && 'hidden'}`}
                                     onPress={() => {
                                         registerHandler('hotkey_selection_translate', selectionTranslate);
+                                    }}
+                                >
+                                    {t('common.ok')}
+                                </Button>
+                            }
+                        />
+                    )}
+                </div>
+                <div className='config-item'>
+                    <h3 className='my-auto'>{t('config.hotkey.selection_toolbar')}</h3>
+                    {selectionToolbar !== null && (
+                        <Input
+                            type='hotkey'
+                            variant='bordered'
+                            value={selectionToolbar}
+                            label={t('config.hotkey.set_hotkey')}
+                            className='max-w-[50%]'
+                            onKeyDown={(e) => {
+                                keyDown(e, setSelectionToolbar);
+                            }}
+                            onFocus={() => {
+                                unregister(selectionToolbar);
+                                setSelectionToolbar('');
+                            }}
+                            endContent={
+                                <Button
+                                    size='sm'
+                                    variant='flat'
+                                    className={`${selectionToolbar === '' && 'hidden'}`}
+                                    onPress={() => {
+                                        registerHandler('hotkey_selection_toolbar', selectionToolbar);
                                     }}
                                 >
                                     {t('common.ok')}

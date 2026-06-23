@@ -179,6 +179,7 @@
                 "label": "Hotkey",
                 "title": "Hotkey Settings",
                 "selection_translate": "Selection Translation",
+                "selection_toolbar": "Selection Toolbar",
                 "input_translate": "Text Translation",
                 "ocr_recognize": "Text Recognition",
                 "ocr_translate": "Screenshot Translation",

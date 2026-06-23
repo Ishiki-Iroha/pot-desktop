@@ -224,9 +224,24 @@ fn get_selected_text_without_clipboard() -> String {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn get_selected_text_with_fallback() -> String {
+    let text = get_selected_text_without_clipboard();
+    if !text.is_empty() {
+        return text;
+    }
+
+    selection::get_text().trim().to_string()
+}
+
 #[cfg(not(target_os = "windows"))]
 fn get_selected_text_without_clipboard() -> String {
     selection::get_text().trim().to_string()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_selected_text_with_fallback() -> String {
+    get_selected_text_without_clipboard()
 }
 
 fn check_selection_after_delay() {
@@ -268,6 +283,31 @@ fn check_selection_after_delay() {
         }
 
         info!("Show selection toolbar for selected text");
+        show_toolbar_near_mouse(text);
+    });
+}
+
+pub fn show_selection_toolbar_by_hotkey() {
+    thread::spawn(|| {
+        if !selection_toolbar_enabled() {
+            hide_toolbar_window();
+            return;
+        }
+
+        let text = get_selected_text_with_fallback();
+        if text.is_empty() {
+            warn!("Selection toolbar hotkey ignored: no selected text");
+            hide_toolbar_window();
+            return;
+        }
+
+        {
+            let mut state = TRIGGER_STATE.lock().unwrap();
+            state.last_text = text.clone();
+            state.last_at = Instant::now();
+        }
+
+        info!("Show selection toolbar by hotkey");
         show_toolbar_near_mouse(text);
     });
 }

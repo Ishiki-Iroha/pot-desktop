@@ -179,6 +179,7 @@
                 "label": "热键设置",
                 "title": "热键设置",
                 "selection_translate": "划词翻译",
+                "selection_toolbar": "划词工具栏",
                 "input_translate": "输入翻译",
                 "ocr_recognize": "文字识别",
                 "ocr_translate": "截图翻译",
