@@ -47,7 +47,9 @@
             "ai_translate": "AI 翻译",
             "explain": "解释",
             "copy": "复制",
-            "selected_text": "选中文本"
+            "selected_text": "选中文本",
+            "follow_up_placeholder": "继续追问…",
+            "send": "发送"
         },
         "config": {
             "general": {

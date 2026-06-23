@@ -47,7 +47,9 @@
             "ai_translate": "AI Translate",
             "explain": "Explain",
             "copy": "Copy",
-            "selected_text": "Selected Text"
+            "selected_text": "Selected Text",
+            "follow_up_placeholder": "Ask a follow-up…",
+            "send": "Send"
         },
         "config": {
             "general": {

@@ -66,8 +66,7 @@ export const DEFAULT_TOOLBAR_TRANSLATE_PROMPT_LIST = [
 export const DEFAULT_TOOLBAR_EXPLAIN_PROMPT_LIST = [
     {
         role: 'system',
-        content:
-            '你是一个简洁、准确的中文解释助手。解释用户划选的文本，说明含义、上下文、关键概念和可能的歧义。',
+        content: '你是一个简洁、准确的中文解释助手。解释用户划选的文本，说明含义、上下文、关键概念和可能的歧义。',
     },
     {
         role: 'user',
@@ -124,7 +123,7 @@ function readStreamLine(data, setResult) {
     return result.choices?.[0]?.delta?.content ?? '';
 }
 
-export async function runSelectionAiAction({ profile, promptList, text, from, to, detect, setResult }) {
+export async function runSelectionAiAction({ profile, promptList, text, from, to, detect, messages, setResult }) {
     if (!profile) {
         throw new Error('Please select an AI profile first');
     }
@@ -142,12 +141,14 @@ export async function runSelectionAiAction({ profile, promptList, text, from, to
         ...parseRequestArguments(profile.requestArguments),
         model: profile.model,
         stream: profile.stream,
-        messages: renderPromptList(promptList, {
-            text,
-            from,
-            to,
-            detect,
-        }),
+        messages:
+            messages ??
+            renderPromptList(promptList, {
+                text,
+                from,
+                to,
+                detect,
+            }),
     };
     const url = normalizeChatCompletionsUrl(profile.baseURL);
     const headers = {
