@@ -106,15 +106,15 @@ fn show_toolbar_near_mouse(text: String) {
     let dpi = monitor.scale_factor();
     let monitor_size = monitor.size();
     let monitor_position = monitor.position();
-    let width = TOOLBAR_WIDTH * dpi;
-    let height = TOOLBAR_HEIGHT * dpi;
+    let physical_width = TOOLBAR_WIDTH * dpi;
+    let physical_height = TOOLBAR_HEIGHT * dpi;
 
-    let mut x = mouse_position.x as f64 - width / 2.0;
+    let mut x = mouse_position.x as f64 - physical_width / 2.0;
     let mut y = mouse_position.y as f64 + 18.0 * dpi;
     let min_x = monitor_position.x as f64;
     let min_y = monitor_position.y as f64;
-    let max_x = min_x + monitor_size.width as f64 - width;
-    let max_y = min_y + monitor_size.height as f64 - height;
+    let max_x = min_x + monitor_size.width as f64 - physical_width;
+    let max_y = min_y + monitor_size.height as f64 - physical_height;
 
     if x < min_x {
         x = min_x;
@@ -123,17 +123,19 @@ fn show_toolbar_near_mouse(text: String) {
         x = max_x;
     }
     if y > max_y {
-        y = mouse_position.y as f64 - height - 18.0 * dpi;
+        y = mouse_position.y as f64 - physical_height - 18.0 * dpi;
     }
     if y < min_y {
         y = min_y;
     }
 
-    let _ = window.set_size(tauri::PhysicalSize::new(width, height));
     let _ = window.set_position(tauri::PhysicalPosition::new(
         x.round() as i32,
         y.round() as i32,
     ));
+    // Mouse and monitor bounds are physical pixels, but the toolbar UI should keep
+    // a stable logical size across mixed-DPI monitors.
+    let _ = window.set_size(tauri::LogicalSize::new(TOOLBAR_WIDTH, TOOLBAR_HEIGHT));
     let _ = window.show();
     let _ = window.emit("selection_toolbar_text_changed", text);
 }
