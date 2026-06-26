@@ -46,6 +46,13 @@ pub static APP: OnceCell<tauri::AppHandle> = OnceCell::new();
 pub struct StringWrapper(pub Mutex<String>);
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        let _ = windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext(
+            windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+        );
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
             Notification::new(&app.config().tauri.bundle.identifier)

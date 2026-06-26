@@ -55,6 +55,7 @@ fn get_toolbar_window() -> Window {
         tauri::WindowUrl::App("index.html".into()),
     )
     .title("Selection Toolbar")
+    .inner_size(TOOLBAR_WIDTH, TOOLBAR_HEIGHT)
     .visible(false)
     .focused(false)
     .resizable(false)
@@ -133,9 +134,10 @@ fn show_toolbar_near_mouse(text: String) {
         x.round() as i32,
         y.round() as i32,
     ));
-    // Mouse and monitor bounds are physical pixels, but the toolbar UI should keep
-    // a stable logical size across mixed-DPI monitors.
-    let _ = window.set_size(tauri::LogicalSize::new(TOOLBAR_WIDTH, TOOLBAR_HEIGHT));
+    let _ = window.set_size(tauri::PhysicalSize::new(
+        (TOOLBAR_WIDTH * dpi).round() as i32,
+        (TOOLBAR_HEIGHT * dpi).round() as i32,
+    ));
     let _ = window.show();
     let _ = window.emit("selection_toolbar_text_changed", text);
 }
